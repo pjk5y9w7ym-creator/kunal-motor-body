@@ -31,14 +31,62 @@ function show(s){loginBox.hidden=!!s;panel.hidden=!s;if(s){loadSettings();loadMe
 async function login(){if(!db)return;const e=email.value.trim(),p=password.value;if(!e||!p)return msg('loginMsg','Email और password भरें।');const {error}=await db.auth.signInWithPassword({email:e,password:p});if(error)msg('loginMsg','Login failed: '+error.message)}
 async function logout(){await db.auth.signOut()}
 async function upload(){
- if(!db)return;const fs=[...files.files];if(!fs.length)return msg('uploadMsg','पहले files select करें।');
- const {data:{user}}=await db.auth.getUser();let ok=0;
- for(const f of fs){if(f.size>100*1024*1024)continue;const ext=(f.name.split('.').pop()||'bin').toLowerCase(),path=crypto.randomUUID()+'.'+ext;
- const {error:u}=await db.storage.from(bucket).upload(path,f,{contentType:f.type});if(u)continue;
- const {data:url}=db.storage.from(bucket).getPublicUrl(path);const type=f.type.startsWith('video/')?'video':'photo';
- const {error:d}=await db.from('media').insert({title:title.value.trim()||f.name,media_type:type,storage_path:path,public_url:url.publicUrl,created_by:user.id});
- if(d)await db.storage.from(bucket).remove([path]);else ok++}
- msg('uploadMsg',ok+' file(s) uploaded.',true);files.value='';loadMedia()
+  if(!db) return;
+
+  const fs=[...files.files];
+
+  if(!fs.length){
+    msg('uploadMsg','Pehle photo ya video select karo.');
+    return;
+  }
+
+  const {data:{user}}=await db.auth.getUser();
+
+  if(!user){
+    msg('uploadMsg','Pehle login karo.');
+    return;
+  }
+
+  for(const f of fs){
+
+    if(f.size>100*1024*1024){
+      msg('uploadMsg',f.name+' 100 MB se badi hai.');
+      continue;
+    }
+
+    const path=user.id+'/'+Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+
+    const {error:u}=await db.storage
+      .from('media')
+      .upload(path,f,{upsert:false});
+
+    if(u){
+      msg('uploadMsg','Upload failed: '+u.message);
+      return;
+    }
+
+    const {data:urlData}=db.storage
+      .from('media')
+      .getPublicUrl(path);
+
+    const {error:d}=await db.from('media').insert({
+      user_id:user.id,
+      path:path,
+      title:title?.value || f.name,
+      url:urlData.publicUrl
+    });
+
+    if(d){
+      await db.storage.from('media').remove([path]);
+      msg('uploadMsg','Database error: '+d.message);
+      return;
+    }
+  }
+
+  msg('uploadMsg',fs.length+' file(s) uploaded.',true);
+  files.value='';
+  if(typeof loadMedia==='function') await loadMedia();
+}
 }
 async function loadSettings(){const {data}=await db.from('site_settings').select('*').eq('id',1).maybeSingle();if(data){tagline.value=data.tagline||'';address.value=data.address||'';phone1.value=data.phone1||'';phone2.value=data.phone2||''}}
 async function saveSettings(){const {data:{user}}=await db.auth.getUser();const {error}=await db.from('site_settings').upsert({id:1,tagline:tagline.value,address:address.value,phone1:phone1.value,phone2:phone2.value,updated_by:user.id});msg('settingsMsg',error?error.message:'Changes saved.',!error)}
