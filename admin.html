@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Kunal Motor Body | Secure Admin</title>
+  <script src="config.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;background:#050607;color:#f5f5f5;
+      font-family:Arial,Helvetica,sans-serif;
+    }
+    .wrap{max-width:1100px;margin:auto;padding:22px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:28px}
+    h1{font-size:42px;margin:0 0 8px;font-weight:800}
+    h2{font-size:28px;margin:0 0 18px}
+    p{line-height:1.55}
+    .note{font-size:18px;color:#ddd}
+    .card{
+      background:#111417;border:1px solid #333;border-radius:18px;
+      padding:22px;margin:18px 0;box-shadow:0 8px 30px #0008
+    }
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    label{display:block;font-weight:700;margin:0 0 7px}
+    input,textarea{
+      width:100%;border:1px solid #777;border-radius:10px;
+      padding:14px;background:#fff;color:#111;font-size:16px;
+    }
+    textarea{min-height:100px;resize:vertical}
+    button,.back{
+      border:0;border-radius:12px;padding:14px 20px;
+      background:#ffc400;color:#090909;font-weight:800;font-size:16px;
+      cursor:pointer;text-decoration:none;display:inline-block
+    }
+    button.secondary,.back.secondary{background:#24282d;color:#fff;border:1px solid #555}
+    button.danger{background:#d33;color:#fff}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .full{width:100%}
+    .hidden{display:none!important}
+    .msg{padding:12px;border-radius:10px;margin:14px 0;background:#20252a}
+    .ok{border:1px solid #35c77a;color:#bff5d4}
+    .err{border:1px solid #ff5a5a;color:#ffd0d0}
+    .media{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .item{background:#0b0d0f;border:1px solid #333;border-radius:14px;overflow:hidden}
+    .item img,.item video{display:block;width:100%;height:180px;object-fit:cover;background:#000}
+    .item-body{padding:12px}
+    .muted{color:#aaa;font-size:13px;word-break:break-all}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    @media(max-width:700px){
+      .wrap{padding:14px}
+      h1{font-size:34px}
+      .grid,.media{grid-template-columns:1fr}
+      .card{padding:16px}
+    }
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>🔒 SECURE ADMIN PANEL</h1>
+      <div class="note">Login ke bina upload, delete ya website settings change nahi ki ja sakti.</div>
+    </div>
+    <a class="back secondary" href="index.html">← WEBSITE</a>
+  </div>
+
+  <section id="loginCard" class="card">
+    <h2>Admin Login</h2>
+    <div class="grid">
+      <div>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="Admin email">
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="Password">
+      </div>
+    </div>
+    <div id="loginMsg" class="msg hidden"></div>
+    <button id="loginBtn" class="full">LOGIN</button>
+  </section>
+
+  <section id="panel" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <h2 style="margin-bottom:5px">Admin Controls</h2>
+          <div id="who" class="muted"></div>
+        </div>
+        <button id="logoutBtn" class="secondary">LOGOUT</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>📷 Photos + 🎥 Videos</h2>
+        <input id="files" type="file" accept="image/*,video/*" multiple>
+        <div style="height:10px"></div>
+        <input id="title" placeholder="Title (optional)">
+        <div style="height:10px"></div>
+        <button id="uploadBtn" class="full">UPLOAD MEDIA</button>
+        <div id="uploadMsg" class="msg hidden"></div>
+        <p class="muted">Maximum 100 MB per file.</p>
+      </section>
+
+      <section class="card">
+        <h2>📝 Website Details</h2>
+        <label for="tagline">Tagline</label>
+        <input id="tagline" placeholder="Tagline">
+        <br><br>
+        <label for="address">Address</label>
+        <input id="address" placeholder="Address">
+        <br><br>
+        <div class="grid">
+          <div>
+            <label for="phone1">Phone 1</label>
+            <input id="phone1" placeholder="Phone">
+          </div>
+          <div>
+            <label for="phone2">Phone 2</label>
+            <input id="phone2" placeholder="Phone">
+          </div>
+        </div>
+        <br>
+        <button id="saveBtn" class="full">SAVE CHANGES</button>
+        <div id="saveMsg" class="msg hidden"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>📁 Uploaded Media</h2>
+      <div id="mediaBox" class="media"></div>
+      <div id="mediaMsg" class="msg hidden"></div>
+    </section>
+  </section>
+</div>
+
+<script>
+(() => {
+  const C = window.KMB_CONFIG || {};
+  const supabaseUrl = C.url || C.supabaseUrl;
+  const anonKey = C.anonKey || C.key || C.supabaseAnonKey;
+
+  if (!supabaseUrl || !anonKey) {
+    document.getElementById('loginMsg').textContent =
+      'config.js me Supabase URL aur anonKey nahi mil raha.';
+    document.getElementById('loginMsg').className = 'msg err';
+    return;
+  }
+
+  const db = window.supabase.createClient(supabaseUrl, anonKey);
+  const BUCKET = 'media';
+
+  const $ = id => document.getElementById(id);
+  const showMsg = (id, text, ok=false) => {
+    const el=$(id);
+    el.textContent=text;
+    el.className='msg ' + (ok ? 'ok' : 'err');
+  };
+
+  async function isAdmin() {
+    const { data: userData, error: userError } = await db.auth.getUser();
+    if (userError || !userData.user) return false;
+
+    // Uses the public.is_admin() function you created for the project.
+    const { data, error } = await db.rpc('is_admin');
+    if (error) {
+      console.error(error);
+      return false;
+    }
+    return data === true;
+  }
+
+  async function login() {
+    const email=$('email').value.trim();
+    const password=$('password').value;
+
+    if (!email || !password) {
+      showMsg('loginMsg','Email aur password dono bharo.');
+      return;
+    }
+
+    $('loginBtn').disabled=true;
+    $('loginBtn').textContent='LOGGING IN...';
+
+    const { error } = await db.auth.signInWithPassword({email,password});
+
+    if (error) {
+      showMsg('loginMsg','Login failed: ' + error.message);
+      $('loginBtn').disabled=false;
+      $('loginBtn').textContent='LOGIN';
+      return;
+    }
+
+    if (!(await isAdmin())) {
+      await db.auth.signOut();
+      showMsg('loginMsg','Ye account admin nahi hai.');
+      $('loginBtn').disabled=false;
+      $('loginBtn').textContent='LOGIN';
+      return;
+    }
+
+    await openPanel();
+  }
+
+  async function logout() {
+    await db.auth.signOut();
+    $('panel').classList.add('hidden');
+    $('loginCard').classList.remove('hidden');
+    $('loginBtn').disabled=false;
+    $('loginBtn').textContent='LOGIN';
+  }
+
+  async function openPanel() {
+    const { data } = await db.auth.getUser();
+    $('who').textContent = data.user ? data.user.email : '';
+    $('loginCard').classList.add('hidden');
+    $('panel').classList.remove('hidden');
+    await loadSettings();
+    await loadMedia();
+  }
+
+  async function upload() {
+    const fs=[...$('files').files];
+    if (!fs.length) {
+      showMsg('uploadMsg','Pehle photo ya video select karo.');
+      return;
+    }
+
+    if (!(await isAdmin())) {
+      showMsg('uploadMsg','Admin login required.');
+      return;
+    }
+
+    $('uploadBtn').disabled=true;
+    $('uploadBtn').textContent='UPLOADING...';
+
+    const title=$('title').value.trim();
+
+    for (const f of fs) {
+      if (f.size > 100*1024*1024) {
+        showMsg('uploadMsg', f.name + ' 100 MB se badi hai.');
+        continue;
+      }
+
+      const { data:{user} } = await db.auth.getUser();
+      if (!user) {
+        showMsg('uploadMsg','Session khatam ho gayi. Dobara login karo.');
+        break;
+      }
+
+      const safeName=f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path=user.id + '/' + Date.now() + '_' + safeName;
+
+      const { error: upError } = await db.storage
+        .from(BUCKET)
+        .upload(path,f,{upsert:false,contentType:f.type});
+
+      if (upError) {
+        showMsg('uploadMsg','Upload failed: ' + upError.message);
+        continue;
+      }
+
+      const { data:urlData } = db.storage.from(BUCKET).getPublicUrl(path);
+
+      const { error: dbError } = await db.from('media').insert({
+        user_id:user.id,
+        path:path,
+        title:title || f.name,
+        url:urlData.publicUrl
+      });
+
+      if (dbError) {
+        await db.storage.from(BUCKET).remove([path]);
+        showMsg('uploadMsg','Database error: ' + dbError.message);
+        continue;
+      }
+    }
+
+    $('files').value='';
+    $('title').value='';
+    showMsg('uploadMsg',fs.length+' file(s) uploaded.',true);
+    await loadMedia();
+
+    $('uploadBtn').disabled=false;
+    $('uploadBtn').textContent='UPLOAD MEDIA';
+  }
+
+  async function loadSettings() {
+    const { data, error } = await db.from('site_settings').select('*').limit(1).maybeSingle();
+    if (error) {
+      console.log('Settings table/read:', error.message);
+      return;
+    }
+    if (!data) return;
+
+    $('tagline').value=data.tagline || '';
+    $('address').value=data.address || '';
+    $('phone1').value=data.phone1 || '';
+    $('phone2').value=data.phone2 || '';
+  }
+
+  async function saveSettings() {
+    if (!(await isAdmin())) {
+      showMsg('saveMsg','Admin login required.');
+      return;
+    }
+
+    const payload={
+      tagline:$('tagline').value.trim(),
+      address:$('address').value.trim(),
+      phone1:$('phone1').value.trim(),
+      phone2:$('phone2').value.trim()
+    };
+
+    $('saveBtn').disabled=true;
+    const { data: existing } = await db.from('site_settings').select('id').limit(1).maybeSingle();
+
+    let result;
+    if (existing && existing.id) {
+      result=await db.from('site_settings').update(payload).eq('id',existing.id);
+    } else {
+      result=await db.from('site_settings').insert(payload);
+    }
+
+    $('saveBtn').disabled=false;
+
+    if (result.error) showMsg('saveMsg','Save failed: '+result.error.message);
+    else showMsg('saveMsg','Changes saved.',true);
+  }
+
+  async function loadMedia() {
+    const box=$('mediaBox');
+    box.innerHTML='Loading...';
+
+    const { data, error } = await db.from('media')
+      .select('*')
+      .order('created_at',{ascending:false});
+
+    if (error) {
+      box.innerHTML='';
+      showMsg('mediaMsg','Media load failed: '+error.message);
+      return;
+    }
+
+    box.innerHTML='';
+    if (!data || !data.length) {
+      box.innerHTML='<p class="muted">No media yet.</p>';
+      return;
+    }
+
+    for (const m of data) {
+      const item=document.createElement('div');
+      item.className='item';
+
+      const url=m.url || db.storage.from(BUCKET).getPublicUrl(m.path).data.publicUrl;
+      const isVideo=/\.(mp4|webm|mov|m4v)$/i.test(m.path || '');
+
+      item.innerHTML = `
+        ${isVideo
+          ? `<video src="${escapeHtml(url)}" controls></video>`
+          : `<img src="${escapeHtml(url)}" alt="">`}
+        <div class="item-body">
+          <strong>${escapeHtml(m.title || 'Untitled')}</strong>
+          <div class="muted">${escapeHtml(m.path || '')}</div>
+          <div class="actions">
+            <button class="danger" data-id="${escapeHtml(m.id)}" data-path="${escapeHtml(m.path)}">DELETE</button>
+          </div>
+        </div>`;
+      box.appendChild(item);
+    }
+
+    box.querySelectorAll('button[data-id]').forEach(btn=>{
+      btn.addEventListener('click',()=>del(btn.dataset.id,btn.dataset.path));
+    });
+  }
+
+  async function del(id,path) {
+    if (!(await isAdmin())) {
+      showMsg('mediaMsg','Admin login required.');
+      return;
+    }
+    if (!confirm('Delete this media?')) return;
+
+    const { error: d } = await db.from('media').delete().eq('id',id);
+    if (d) {
+      showMsg('mediaMsg','Database error: '+d.message);
+      return;
+    }
+
+    const { error: s } = await db.storage.from(BUCKET).remove([path]);
+    if (s) {
+      showMsg('mediaMsg','Database se delete ho gaya, storage delete failed: '+s.message);
+      return;
+    }
+
+    await loadMedia();
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  $('loginBtn').addEventListener('click',login);
+  $('logoutBtn').addEventListener('click',logout);
+  $('uploadBtn').addEventListener('click',upload);
+  $('saveBtn').addEventListener('click',saveSettings);
+
+  $('password').addEventListener('keydown',e=>{
+    if(e.key==='Enter') login();
+  });
+
+  db.auth.getSession().then(async ({data})=>{
+    if(data.session && await isAdmin()) await openPanel();
+  });
+})();
+</script>
+</body>
+</html>
