@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kunal Motor Body - Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tus-js-client@4/dist/tus.min.js"></script>
+<script src="config.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#050607;color:#fff;font-family:Arial,sans-serif}
+.wrap{max-width:900px;margin:auto;padding:24px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:30px}
+h1{font-size:38px;margin:0}.gold{color:#ffc400}
+.card{background:#111417;border:1px solid #333;border-radius:18px;padding:24px;margin:20px 0}
+label{display:block;font-weight:800;margin:15px 0 8px}
+input{width:100%;padding:15px;border-radius:10px;border:1px solid #777;font-size:17px}
+button{border:0;border-radius:12px;padding:15px 20px;background:#ffc400;color:#000;font-weight:900;font-size:16px;cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.msg{padding:14px;border-radius:10px;background:#191c20;margin-top:15px;white-space:pre-wrap}
+.progress{height:18px;background:#25282c;border-radius:99px;overflow:hidden;margin-top:12px}
+.bar{height:100%;width:0;background:#ffc400;transition:width .2s}
+.small{color:#aaa;font-size:14px;margin-top:8px}
+#panel{display:none}
+@media(max-width:700px){.row{grid-template-columns:1fr}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>🔒 <span class="gold">ADMIN</span> PANEL</h1>
+    <a href="index.html"><button>← WEBSITE</button></a>
+  </div>
+
+  <div id="loginBox" class="card">
+    <h2>Admin Login</h2>
+    <label>Email</label>
+    <input id="email" type="email" autocomplete="username">
+    <label>Password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <br><br><button id="loginBtn">LOGIN</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+
+  <div id="panel">
+    <div class="card">
+      <div class="top">
+        <h2>Admin Controls</h2>
+        <button id="logoutBtn">LOGOUT</button>
+      </div>
+      <div id="who" class="small"></div>
+    </div>
+
+    <div class="card">
+      <h2>📷 Photos + 🎥 Videos</h2>
+      <label>Select any media file</label>
+      <input id="files" type="file" accept="image/*,video/*">
+      <label>Title (optional)</label>
+      <input id="title" placeholder="Pickup Body / Work Video">
+      <br><br>
+      <button id="uploadBtn">UPLOAD MEDIA</button>
+      <div class="progress"><div id="bar" class="bar"></div></div>
+      <div id="progressText" class="small">Ready</div>
+      <div id="uploadMsg" class="msg"></div>
+      <div class="small">No 100 MB code limit is used here. Large files use resumable upload.</div>
+    </div>
+
+    <div class="card">
+      <h2>📝 Website Details</h2>
+      <label>Tagline</label>
+      <input id="tagline">
+      <label>Address</label>
+      <input id="address">
+      <div class="row">
+        <div><label>Phone 1</label><input id="phone1"></div>
+        <div><label>Phone 2</label><input id="phone2"></div>
+      </div>
+      <br><button id="saveBtn">SAVE CHANGES</button>
+      <div id="saveMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>📁 Uploaded Media</h2>
+      <div id="mediaList">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const C = window.KMB_CONFIG || {};
+  const url = C.url || C.supabaseUrl;
+  const key = C.anonKey || C.key || C.supabaseAnonKey;
+  const BUCKET = 'media';
+
+  const $ = id => document.getElementById(id);
+  const db = (url && key) ? window.supabase.createClient(url,key) : null;
+
+  function show(id,text){ $(id).textContent=text || ''; }
+
+  function storageHost(){
+    try{
+      const h = new URL(url).hostname;
+      const project = h.split('.')[0];
+      return `https://${project}.storage.supabase.co`;
+    }catch(e){ return ''; }
+  }
+
+  function formatBytes(n){
+    if(!Number.isFinite(n)) return '';
+    const units=['B','KB','MB','GB','TB'];
+    let i=0,x=n;
+    while(x>=1024 && i<units.length-1){x/=1024;i++}
+    return `${x.toFixed(i?2:0)} ${units[i]}`;
+  }
+
+  async function init(){
+    if(!db){ show('loginMsg','config.js me Supabase URL/key missing.'); return; }
+    const {data:{session}} = await db.auth.getSession();
+    if(session) openPanel(session);
+  }
+
+  function openPanel(session){
+    $('loginBox').style.display='none';
+    $('panel').style.display='block';
+    show('who',session?.user?.email || '');
+    loadSettings();
+    loadMedia();
+  }
+
+  $('loginBtn').onclick = async () => {
+    if(!db) return;
+    const email=$('email').value.trim(), password=$('password').value;
+    show('loginMsg','');
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error){show('loginMsg','Login failed: '+error.message);return;}
+    openPanel(data.session);
+  };
+
+  $('logoutBtn').onclick = async () => {
+    await db.auth.signOut();
+    location.reload();
+  };
+
+  $('uploadBtn').onclick = async () => {
+    const file=$('files').files[0];
+    const title=$('title').value.trim();
+    show('uploadMsg',''); $('bar').style.width='0%'; show('progressText','');
+    if(!file){show('uploadMsg','Pehle photo ya video select karo.');return;}
+
+    const {data:{session}}=await db.auth.getSession();
+    if(!session){show('uploadMsg','Pehle login karo.');return;}
+
+    const projectStorage=storageHost();
+    if(!projectStorage){show('uploadMsg','Storage URL create nahi ho paaya.');return;}
+
+    $('uploadBtn').disabled=true;
+    show('progressText',`${file.name} — ${formatBytes(file.size)} — uploading...`);
+
+    const safeName=file.name.replace(/[^A-Za-z0-9._()'!*$@=;:+?,-]/g,'_');
+    const path=`${session.user.id}/${Date.now()}-${safeName}`;
+    const endpoint=`${projectStorage}/storage/v1/upload/resumable`;
+
+    const upload=new tus.Upload(file,{
+      endpoint,
+      retryDelays:[0,3000,5000,10000,20000],
+      headers:{
+        authorization:`Bearer ${session.access_token}`,
+        'x-upsert':'false'
+      },
+      uploadDataDuringCreation:true,
+      removeFingerprintOnSuccess:true,
+      chunkSize:6*1024*1024,
+      metadata:{
+        bucketName:BUCKET,
+        objectName:path,
+        contentType:file.type || 'application/octet-stream',
+        cacheControl:'3600'
+      },
+      onError(error){
+        show('uploadMsg','Upload failed: '+(error?.message || error));
+        $('uploadBtn').disabled=false;
+      },
+      onProgress(bytesUploaded,bytesTotal){
+        const pct=((bytesUploaded/bytesTotal)*100).toFixed(1);
+        $('bar').style.width=pct+'%';
+        show('progressText',`${pct}% — ${formatBytes(bytesUploaded)} / ${formatBytes(bytesTotal)}`);
+      },
+      async onSuccess(){
+        const publicUrl=db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+        let result = await db.from('media').insert({
+          user_id:session.user.id,
+          title:title || file.name,
+          url:publicUrl
+        });
+
+        // If this project already has a path column, save it too.
+        if(result.error && /path.*column|column.*path/i.test(result.error.message || '')){
+          result = await db.from('media').insert({
+            user_id:session.user.id,
+            path,
+            title:title || file.name,
+            url:publicUrl
+          });
+        }
+
+        const error = result.error;
+
+        if(error){
+          await db.storage.from(BUCKET).remove([path]);
+          show('uploadMsg','File upload hua, lekin database entry fail hui: '+error.message);
+          $('uploadBtn').disabled=false;
+          return;
+        }
+
+        $('bar').style.width='100%';
+        show('progressText','100% — Upload complete');
+        show('uploadMsg','✅ File successfully uploaded and saved.');
+        $('files').value='';
+        $('title').value='';
+        $('uploadBtn').disabled=false;
+        loadMedia();
+      }
+    });
+
+    try{
+      const previous=await upload.findPreviousUploads();
+      if(previous.length) upload.resumeFromPreviousUpload(previous[0]);
+    }catch(e){}
+
+    upload.start();
+  };
+
+  async function loadSettings(){
+    const {data,error}=await db.from('site_settings').select('*').limit(1).maybeSingle();
+    if(error || !data)return;
+    ['tagline','address','phone1','phone2'].forEach(k=>{if(data[k]!=null)$(k).value=data[k]});
+  }
+
+  $('saveBtn').onclick=async()=>{
+    const {data:{session}}=await db.auth.getSession();
+    if(!session){show('saveMsg','Pehle login karo.');return;}
+    const payload={
+      tagline:$('tagline').value,
+      address:$('address').value,
+      phone1:$('phone1').value,
+      phone2:$('phone2').value
+    };
+    const {data:old}=await db.from('site_settings').select('id').limit(1).maybeSingle();
+    let result;
+    if(old?.id) result=await db.from('site_settings').update(payload).eq('id',old.id);
+    else result=await db.from('site_settings').insert(payload);
+    show('saveMsg',result.error?'Save failed: '+result.error.message:'✅ Changes saved.');
+  };
+
+  async function loadMedia(){
+    let {data,error}=await db.from('media').select('id,title,url,created_at').order('created_at',{ascending:false});
+    if(error){
+      const r=await db.from('media').select('*').order('created_at',{ascending:false});
+      data=r.data; error=r.error;
+    }
+    if(error){show('mediaList','Load failed: '+error.message);return;}
+    if(!data?.length){show('mediaList','No media yet.');return;}
+    $('mediaList').innerHTML=data.map(m=>`
+      <div class="msg">
+        <b>${esc(m.title||m.path)}</b><br>
+        <span class="small">${esc(m.path)}</span><br><br>
+        <button data-del="${esc(m.id)}" data-path="${esc(m.path||'')}" data-url="${esc(m.url||'')}">DELETE</button>
+      </div>
+    `).join('');
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delMedia(b.dataset.del,b.dataset.path,b.dataset.url));
+  }
+
+  async function delMedia(id,path,urlForMedia){
+    if(!confirm('Delete this media?'))return;
+    let storagePath=path;
+    if(!storagePath && urlForMedia){
+      const marker=`/storage/v1/object/public/${BUCKET}/`;
+      const i=urlForMedia.indexOf(marker);
+      if(i>=0) storagePath=decodeURIComponent(urlForMedia.slice(i+marker.length));
+    }
+    const {error:a}=storagePath ? await db.storage.from(BUCKET).remove([storagePath]) : {error:null};
+    if(a){show('mediaList','Storage delete failed: '+a.message);return;}
+    const {error:b}=await db.from('media').delete().eq('id',id);
+    if(b){show('mediaList','Database delete failed: '+b.message);return;}
+    loadMedia();
+  }
+
+  function esc(s){
+    return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
