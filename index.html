@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Kunal Motor Body</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:#050607;color:#f5f5f5;font-family:Arial,Helvetica,sans-serif}
+    a{text-decoration:none;color:inherit}
+    .wrap{max-width:1200px;margin:auto;padding:0 22px}
+    header{border-bottom:1px solid #3d3500;background:#050607;position:sticky;top:0;z-index:20}
+    .head{min-height:150px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{display:flex;align-items:center;gap:16px}
+    .logo{width:78px;height:78px;border:5px solid #ffc400;border-radius:24px;display:grid;place-items:center;color:#ffc400;font-weight:900;font-size:25px}
+    .brand h1{margin:0;font-size:28px;line-height:1}
+    .brand h1 span{color:#ffc400;display:block;margin-top:5px}
+    .tag{color:#aaa;letter-spacing:3px;font-size:13px;margin-top:10px}
+    .admin{background:#ffc400;color:#050607;padding:18px 25px;border-radius:15px;font-weight:900}
+    nav{display:flex;gap:34px;justify-content:center;align-items:center;padding:0 0 18px;flex-wrap:wrap}
+    nav a{font-size:18px}
+    nav a:hover{color:#ffc400}
+    .hero{padding:90px 0 75px;border-bottom:1px solid #222}
+    .eyebrow{color:#ffc400;font-weight:800;font-size:18px}
+    .hero h2{font-size:clamp(45px,8vw,82px);margin:14px 0;line-height:.98}
+    .hero p{font-size:21px;color:#ddd;max-width:760px;line-height:1.55}
+    .section{padding:80px 0;border-bottom:1px solid #222}
+    .section h3{color:#ffc400;font-size:20px;margin:0 0 14px}
+    .section h2{font-size:clamp(38px,6vw,64px);margin:0 0 18px}
+    .sub{font-size:20px;color:#ddd}
+    .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
+    .card{background:#111417;border:1px solid #333;border-radius:16px;overflow:hidden}
+    .card img,.card video{display:block;width:100%;height:260px;object-fit:cover;background:#000}
+    .caption{padding:14px}
+    .caption strong{display:block;font-size:17px}
+    .muted{color:#999;margin-top:6px;font-size:13px;word-break:break-all}
+    .empty{color:#bbb;font-size:19px;padding:20px 0}
+    .details{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
+    .detail{background:#111417;border:1px solid #333;border-radius:16px;padding:22px}
+    .detail b{color:#ffc400;display:block;margin-bottom:8px}
+    footer{padding:45px 0;color:#aaa}
+    #status{position:fixed;right:18px;bottom:18px;background:#111417;border:1px solid #444;border-radius:12px;padding:12px 16px;display:none}
+    @media(max-width:800px){
+      .head{min-height:120px}.logo{width:60px;height:60px;font-size:20px;border-width:4px}.brand h1{font-size:22px}.tag{font-size:10px;letter-spacing:2px}
+      .admin{padding:14px 16px;font-size:14px}
+      nav{gap:18px}nav a{font-size:15px}
+      .gallery,.details{grid-template-columns:1fr}
+      .hero{padding:60px 0}.section{padding:60px 0}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="head">
+      <a href="#home" class="brand">
+        <div class="logo">KM</div>
+        <div>
+          <h1>KUNAL <span>MOTOR BODY</span></h1>
+          <div class="tag">STRONG BODY. STRONG TRUST.</div>
+        </div>
+      </a>
+      <a class="admin" href="admin.html">🔒 ADMIN LOGIN</a>
+    </div>
+    <nav>
+      <a href="#home">HOME</a>
+      <a href="#about">ABOUT US</a>
+      <a href="#work">OUR WORK</a>
+      <a href="#photos">PHOTOS</a>
+      <a href="#videos">VIDEOS</a>
+      <a href="#rates">RATES</a>
+      <a href="#contact">CONTACT US</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section id="home" class="hero">
+    <div class="wrap">
+      <div class="eyebrow">KUNAL MOTOR BODY</div>
+      <h2 id="mainTagline">मजबूत बॉडी, आपका भरोसा हमारी जिम्मेदारी</h2>
+      <p id="heroAddress">NH 48 Delhi Jaipur Highway, Paota</p>
+    </div>
+  </section>
+
+  <section id="about" class="section">
+    <div class="wrap">
+      <h3>ABOUT US</h3>
+      <h2>Reliable Motor Body Work</h2>
+      <p class="sub">Pickup body aur motor body ka mazboot, practical aur trusted kaam.</p>
+    </div>
+  </section>
+
+  <section id="work" class="section">
+    <div class="wrap">
+      <h3>OUR WORK</h3>
+      <h2>Quality Body Work</h2>
+      <p class="sub">Har kaam mein strength, finish aur customer trust par focus.</p>
+    </div>
+  </section>
+
+  <section id="photos" class="section">
+    <div class="wrap">
+      <h3>PHOTOS</h3>
+      <h2>Pickup Body Photos</h2>
+      <p class="sub">Hamare uploaded photos yahan automatically show honge.</p>
+      <div id="photosBox" class="gallery"><div class="empty">Photos load ho rahe hain...</div></div>
+    </div>
+  </section>
+
+  <section id="videos" class="section">
+    <div class="wrap">
+      <h3>VIDEOS</h3>
+      <h2>Our Work Videos</h2>
+      <p class="sub">Hamare uploaded videos yahan automatically show honge.</p>
+      <div id="videosBox" class="gallery"><div class="empty">Videos load ho rahe hain...</div></div>
+    </div>
+  </section>
+
+  <section id="rates" class="section">
+    <div class="wrap">
+      <h3>RATES</h3>
+      <h2>Samanya Jankari</h2>
+      <p class="sub">Kaam aur body requirement ke hisaab se rate bataya jayega.</p>
+    </div>
+  </section>
+
+  <section id="contact" class="section">
+    <div class="wrap">
+      <h3>CONTACT US</h3>
+      <h2>Get In Touch</h2>
+      <div class="details">
+        <div class="detail"><b>ADDRESS</b><span id="address">NH 48 Delhi Jaipur Highway, Paota</span></div>
+        <div class="detail"><b>PHONE 1</b><a id="phone1" href="tel:9828808016">9828808016</a></div>
+        <div class="detail"><b>PHONE 2</b><a id="phone2" href="tel:8295565276">8295565276</a></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">© Kunal Motor Body</div></footer>
+<div id="status"></div>
+
+<script>
+(() => {
+  const C = window.KMB_CONFIG || {};
+  const url = C.url || C.supabaseUrl;
+  const key = C.anonKey || C.key || C.supabaseAnonKey;
+  const status = document.getElementById('status');
+
+  function msg(t){
+    status.textContent=t; status.style.display='block';
+    setTimeout(()=>status.style.display='none',2500);
+  }
+
+  if(!url || !key){
+    msg('Supabase config missing');
+    return;
+  }
+
+  const db = window.supabase.createClient(url,key);
+
+  function esc(s){
+    return String(s ?? '').replace(/[&<>"']/g,c=>({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  async function loadSettings(){
+    const {data,error}=await db.from('site_settings').select('*').limit(1).maybeSingle();
+    if(error || !data) return;
+    if(data.tagline) document.getElementById('mainTagline').textContent=data.tagline;
+    if(data.address){
+      document.getElementById('heroAddress').textContent=data.address;
+      document.getElementById('address').textContent=data.address;
+    }
+    if(data.phone1){
+      const e=document.getElementById('phone1'); e.textContent=data.phone1; e.href='tel:'+data.phone1.replace(/\D/g,'');
+    }
+    if(data.phone2){
+      const e=document.getElementById('phone2'); e.textContent=data.phone2; e.href='tel:'+data.phone2.replace(/\D/g,'');
+    }
+  }
+
+  async function loadMedia(){
+    const {data,error}=await db.from('media')
+      .select('id,path,title,url,created_at')
+      .order('created_at',{ascending:false});
+
+    if(error){
+      document.getElementById('photosBox').innerHTML='<div class="empty">Photos load nahi ho paayi.</div>';
+      document.getElementById('videosBox').innerHTML='<div class="empty">Videos load nahi ho paayi.</div>';
+      console.error(error);
+      return;
+    }
+
+    const photos=[];
+    const videos=[];
+
+    (data || []).forEach(m=>{
+      const u=m.url || db.storage.from('media').getPublicUrl(m.path).data.publicUrl;
+      const video=/\.(mp4|webm|mov|m4v|avi)$/i.test(m.path || '') || /^video\//i.test(m.mime_type || '');
+      (video ? videos : photos).push({...m,url:u});
+    });
+
+    render('photosBox',photos,false);
+    render('videosBox',videos,true);
+  }
+
+  function render(id,items,isVideo){
+    const box=document.getElementById(id);
+    if(!items.length){
+      box.innerHTML='<div class="empty">'+(isVideo?'अभी कोई video upload नहीं हुआ है।':'अभी कोई photo upload नहीं हुई है।')+'</div>';
+      return;
+    }
+
+    box.innerHTML=items.map(m=>`
+      <article class="card">
+        ${isVideo
+          ? `<video src="${esc(m.url)}" controls playsinline preload="metadata"></video>`
+          : `<img src="${esc(m.url)}" alt="${esc(m.title || 'Kunal Motor Body photo')}" loading="lazy">`}
+        <div class="caption">
+          <strong>${esc(m.title || '')}</strong>
+          <div class="muted">${m.created_at ? new Date(m.created_at).toLocaleDateString('en-IN') : ''}</div>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  loadSettings();
+  loadMedia();
+})();
+</script>
+</body>
+</html>
