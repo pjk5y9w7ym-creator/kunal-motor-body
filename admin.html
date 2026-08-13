@@ -27,8 +27,7 @@
 const C=window.KMB_CONFIG||{};const db=(C.url&&C.anonKey&&!C.url.includes("YOUR-"))?supabase.createClient(C.url,C.anonKey):null;const bucket='media';
 const msg=(id,t,ok=false)=>{const e=document.getElementById(id);e.textContent=t;e.className='msg '+(ok?'ok':'error')};
 async function init(){if(!db){msg('loginMsg','config.js में Supabase URL और public anon key डालना बाकी है।');return}const {data:{session}}=await db.auth.getSession();show(session);db.auth.onAuthStateChange((_,s)=>show(s))}
-function show(s){loginBox.hidden=!!s;panel.hidden=!s;if(s){loadSettings();loadMedia()}}
-async function login(){if(!db)return;const e=email.value.trim(),p=password.value;if(!e||!p)return msg('loginMsg','Email और password भरें।');const {error}=await db.auth.signInWithPassword({email:e,password:p});if(error)msg('loginMsg','Login failed: '+error.message)}
+function show(s){loginBox.hidden=!!s;panel.hidden=!s;if(s){loadSettings();async function login(){if(!db)return;const e=email.value.trim(),p=password.value;if(!e||!p)return msg('loginMsg','Email aur password bharo.');const {error}=await db.auth.signInWithPassword({email:e,password:p});if(error)return msg('loginMsg',error.message);show(true);await loadSettings();await loadMedia();}
 async function logout(){await db.auth.signOut()}
 async function upload(){
   if(!db) return;
